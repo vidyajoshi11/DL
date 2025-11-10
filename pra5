@@ -1,0 +1,107 @@
+import numpy as np 
+import matplotlib.pyplot as plt 
+from tensorflow.keras.datasets import cifar10 
+from tensorflow.keras.models import Sequential 
+from tensorflow.keras.layers import Dense, Reshape, Flatten, LeakyReLU 
+from tensorflow.keras.optimizers import Adam 
+import time 
+
+#    
+Load CIFAR-10 dataset 
+(X_train, _), (_, _) = cifar10.load_data() 
+X_train = X_train.astype('float32') 
+X_train = (X_train - 127.5) / 127.5   # normalize to [-1, 1] 
+img_shape = (32, 32, 3) 
+latent_dim = 100 
+
+#    
+Build Generator 
+def build_generator(): 
+model = Sequential([ 
+Dense(256, input_dim=latent_dim), 
+LeakyReLU(alpha=0.2), 
+Dense(512), 
+LeakyReLU(alpha=0.2), 
+Dense(1024), 
+LeakyReLU(alpha=0.2), 
+Dense(np.prod(img_shape), activation='tanh'), 
+Reshape(img_shape) 
+]) 
+return model 
+
+
+#    
+Build Discriminator 
+def build_discriminator(): 
+model = Sequential([ 
+Flatten(input_shape=img_shape), 
+Dense(512), 
+LeakyReLU(alpha=0.2), 
+Dense(256), 
+LeakyReLU(alpha=0.2), 
+Dense(1, activation='sigmoid') 
+]) 
+model.compile(loss='binary_crossentropy', optimizer=Adam(0.0002, 0.5), metrics=['accuracy']) 
+return model 
+
+
+# Initialize models 
+generator = build_generator() 
+discriminator = build_discriminator() 
+discriminator.trainable = False 
+
+# Combine both models into a GAN 
+gan = Sequential([generator, discriminator]) 
+gan.compile(loss='binary_crossentropy', optimizer=Adam(0.0002, 0.5)) 
+
+
+#    
+Training 
+epochs = 20  # only 20 to match example 
+batch_size = 64 
+half_batch = batch_size // 2 
+print("Training GAN...") 
+start_time = time.time() 
+for epoch in range(epochs): 
+
+
+# Select random real images 
+idx = np.random.randint(0, X_train.shape[0], half_batch) 
+real_imgs = X_train[idx] 
+
+# Generate fake images 
+noise = np.random.normal(0, 1, (half_batch, latent_dim)) 
+fake_imgs = generator.predict(noise) 
+
+# Labels 
+real_y = np.ones((half_batch, 1)) 
+fake_y = np.zeros((half_batch, 1)) 
+
+# Train discriminator 
+d_loss_real = discriminator.train_on_batch(real_imgs, real_y) 
+d_loss_fake = discriminator.train_on_batch(fake_imgs, fake_y) 
+real_acc = 100 * d_loss_real[1] 
+fake_acc = 100 * d_loss_fake[1] 
+
+# Train generator (wants discriminator to think fake images are real) 
+noise = np.random.normal(0, 1, (batch_size, latent_dim)) 
+valid_y = np.ones((batch_size, 1)) 
+g_loss = gan.train_on_batch(noise, valid_y) 
+
+# Log like example format 
+print(f">{epoch+1} real={real_acc:.0f}% fake={fake_acc:.0f}%") 
+end_time = time.time() 
+print(f"\n✅ Training finished in {end_time - start_time:.2f} seconds") 
+
+#    
+Visualize some fake images 
+noise = np.random.normal(0, 1, (25, latent_dim)) 
+gen_imgs = generator.predict(noise) 
+gen_imgs = 0.5 * gen_imgs + 0.5  # Rescale to [0,1] 
+plt.figure(figsize=(5,5)) 
+for i in range(25): 
+plt.subplot(5,5,i+1) 
+plt.imshow(gen_imgs[i]) 
+plt.axis('off') 
+plt.suptitle("Generated CIFAR-10 Images (Fake)") 
+plt.show()
