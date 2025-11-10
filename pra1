@@ -1,0 +1,69 @@
+from tensorflow.keras.datasets import mnist 
+from sklearn.preprocessing import StandardScaler 
+from sklearn.neural_network import MLPClassifier 
+from sklearn.metrics import accuracy_score 
+import matplotlib.pyplot as plt 
+import time 
+
+# Load MNIST dataset 
+print("Loading MNIST dataset...") 
+(X_train, y_train), (X_test, y_test) = mnist.load_data() 
+
+# Flatten images (28x28 → 784 features) 
+X_train = X_train.reshape(-1, 28*28) 
+X_test = X_test.reshape(-1, 28*28) 
+
+# Normalize pixel values 
+X_train = X_train / 255.0 
+X_test = X_test / 255.0 
+
+# Standardize data 
+scaler = StandardScaler() 
+X_train = scaler.fit_transform(X_train) 
+X_test = scaler.transform(X_test) 
+
+# Define MLP Classifier 
+mlp = MLPClassifier( 
+hidden_layer_sizes=(100,), 
+activation='relu', 
+solver='adam', 
+batch_size=200, 
+max_iter=20, 
+random_state=42, 
+verbose=True 
+) 
+
+# Tthe model (measure time) 
+print("\nTraining MLP classifier...") 
+start_time = time.time() 
+mlp.fit(X_train, y_train) 
+end_time = time.time() 
+training_time = end_time - start_time 
+
+# Evaluate performance 
+y_pred = mlp.predict(X_test) 
+accuracy = accuracy_score(y_test, y_pred) 
+print("\n✅ Model Evaluation Results:") 
+print(f"Accuracy: {accuracy * 100:.2f}%") 
+print(f"Training Time: {training_time:.2f} seconds") 
+
+# Plot  Loss Curve (Graph) 
+plt.figure(figsize=(8, 5)) 
+plt.plot(mlp.loss_curve_, marker='o') 
+plt.title("MLP Classifier Training Loss Curve") 
+plt.xlabel("Iterations (Epochs)") 
+plt.ylabel("Loss") 
+plt.grid(True) 
+plt.show() 
+
+#  Visualize some sample predictions 
+plt.figure(figsize=(10, 5)) 
+for i in range(10): 
+plt.subplot(2, 5, i + 1) 
+idx = np.random.randint(0, len(X_test)) 
+img = X_test[idx].reshape(28, 28) 
+plt.imshow(img, cmap='gray') 
+plt.title(f"Pred: {y_pred[idx]}\nTrue: {y_test[idx]}") 
+plt.axis('off') 
+plt.tight_layout() 
+plt.show() 
