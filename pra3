@@ -1,0 +1,68 @@
+# 1. Load and preprocess the dataset
+ # Using Labeled Faces in the Wild (LFW) dataset as an example
+ from sklearn.datasets import fetch_lfw_people
+ from sklearn.model_selection import train_test_split
+ from sklearn.preprocessing import StandardScaler
+ from sklearn.decomposition import PCA
+ 
+ # Load the dataset, keeping faces with at least 70 images to avoid issues with small classes
+ lfw_people = fetch_lfw_people(min_faces_per_person=70, resize=0.4)
+ 
+ # Introspect the images to find the shapes (height, width)
+ n_samples, h, w = lfw_people.images.shape
+ 
+ # the data has been preprocessed by the fetch_lfw_people function to just
+ # contain numpy arrays of shape (n_samples, h * w)
+ X = lfw_people.data
+ n_features = X.shape[1]
+ 
+ # the target names are the names of the people
+ y = lfw_people.target
+ target_names = lfw_people.target_names
+ n_classes = target_names.shape[0]
+ print("Total dataset size:")
+ print("n_samples: %d" % n_samples)
+ print("n_features: %d" % n_features)
+ print("n_classes: %d" % n_classes)
+ 
+ # Reshape the data for CNN input (add channel dimension)
+ X = X.reshape(n_samples, h, w, 1)
+
+  # 2. Split the data
+ X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25, random_state=42)
+
+  # 3. Build the CNN model
+ import tensorflow as tf
+ from tensorflow.keras.models import Sequential
+ from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropout
+ model = Sequential([
+    Conv2D(32, kernel_size=(3, 3), activation='relu', input_shape=(h, w, 1)),
+    MaxPooling2D(pool_size=(2, 2)),
+    Conv2D(64, kernel_size=(3, 3), activation='relu'),
+    MaxPooling2D(pool_size=(2, 2)),
+    Flatten(),
+    Dense(128, activation='relu'),
+    Dropout(0.5),
+    Dense(n_classes, activation='softmax')
+ ])
+
+
+  # 4. Compile the model
+ model.compile(loss=tf.keras.losses.sparse_categorical_crossentropy,
+              optimizer=tf.keras.optimizers.Adam(),
+              metrics=['accuracy'])
+
+ # 5. Train the model
+ batch_size = 32
+ epochs = 10
+ history = model.fit(X_train, y_train,
+                    batch_size=batch_size,
+                    epochs=epochs,
+                    verbose=1,
+                    validation_data=(X_test, y_test))
+
+
+  # 6. Evaluate the model
+ score = model.evaluate(X_test, y_test, verbose=0)
+ print('Test loss:', score[0])
+ print('Test accuracy:', score[1])                   
