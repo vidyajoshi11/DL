@@ -1,0 +1,88 @@
+# Sentiment Analysis using LSTM and Keras Embedding (No GloVe) 
+import re 
+import numpy as np 
+from tensorflow.keras.datasets import imdb 
+from tensorflow.keras.preprocessing.sequence import pad_sequences 
+from tensorflow.keras.models import Sequential 
+from tensorflow.keras.layers import Embedding, LSTM, Dense, Dropout 
+
+
+#    
+Load IMDB dataset (pre-tokenized by Keras) 
+max_words = 10000  # Vocabulary size 
+max_len = 200      
+# Maximum review length 
+print("Loading IMDB dataset...") 
+(X_train, y_train), (X_test, y_test) = imdb.load_data(num_words=max_words) 
+
+
+#    
+Pad sequences to ensure uniform input length 
+X_train = pad_sequences(X_train, maxlen=max_len) 
+X_test = pad_sequences(X_test, maxlen=max_len) 
+
+
+#    
+Custom stopwords list and text cleaning (for any manual text cleaning) 
+stopwords = ["a","about","above","after","again","against","all","am","an","and","any","are", 
+"as","at","be","because","been","before","being","below","between","both","but", 
+"by","could","did","do","does","doing","down","during","each","few","for","from", 
+"further","had","has","have","having","he","he'd","he'll","he's","her","here", 
+"here's","hers","herself","him","himself","his","how","how's","i","i'd","i'll", 
+"i'm","i've","if","in","into","is","it","it's","its","itself","let's","me","more", 
+"most","my","myself","nor","of","on","once","only","or","other","ought","our", 
+"ours","ourselves","out","over","own","same","she","she'd","she'll","she's", 
+"should","so","some","such","than","that","that's","the","their","theirs","them", 
+"themselves","then","there","there's","these","they","they'd","they'll","they're", 
+"they've","this","those","through","to","too","under","until","up","very","was", 
+"we","we'd","we'll","we're","we've","were","what","what's","when","when's","where", 
+"where's","which","while","who","who's","whom","why","why's","with","would","you", 
+"you'd","you'll","you're","you've","your","yours","yourself","yourselves"] 
+def clean_text(text): 
+text = re.sub(r'<.*?>', '', text)  # Remove HTML tags 
+text = re.sub(r'[^a-zA-Z\s]', '', text.lower())  # Remove special characters 
+text = ' '.join([word for word in text.split() if word not in stopwords])  # Remove stopwords 
+return text 
+
+
+#    
+Build the LSTM model 
+model = Sequential([ 
+Embedding(input_dim=max_words, output_dim=128, input_length=max_len), 
+LSTM(128, dropout=0.2, recurrent_dropout=0.2), 
+Dense(1, activation='sigmoid') 
+]) 
+model.compile(loss='binary_crossentropy', 
+optimizer='adam', 
+metrics=['accuracy'])
+
+#    
+Train the model 
+print("\nTraining model...") 
+history = model.fit(X_train, y_train, 
+epochs=3, 
+batch_size=128, 
+validation_data=(X_test, y_test), 
+verbose=1) 
+
+
+#    
+Evaluate the model 
+loss, accuracy = model.evaluate(X_test, y_test) 
+print(f"\nTest Accuracy: {accuracy * 100:.2f}%") 
+
+#    
+Plot accuracy/loss curves 
+import matplotlib.pyplot as plt 
+plt.figure(figsize=(10,4)) 
+plt.subplot(1,2,1) 
+plt.plot(history.history['accuracy'], label='Train') 
+plt.plot(history.history['val_accuracy'], label='Validation') 
+plt.title('Model Accuracy') 
+plt.legend() 
+plt.subplot(1,2,2) 
+plt.plot(history.history['loss'], label='Train') 
+plt.plot(history.history['val_loss'], label='Validation') 
+plt.title('Model Loss') 
+plt.legend() 
+plt.show()
